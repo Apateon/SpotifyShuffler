@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+<title>SpotifyShuffler</title>
+{% endblock %}
+
+{% block body %}
+<div class="content">
+    {% if user_name %}
+        {% if playlists|length < 1 %}
+            <div class="Messages">
+                No playlists found.<br>
+                Please create one in Spotify!
+            </div>
+        {% else %}
+        <div>
+            {{ toprint }}
+        </div>
+        <form action="/updatesongs" method="POST">
+            <table style="font-size: 5rem;">
+                <tr>
+                    <th>Playlist Name</th>
+                    <th>Tracks</th>
+                    <th>Select</th>
+                </tr>
+                {% for playlist in playlists %}
+                    <tr>
+                        <td>{{playlist[0]}}</td>
+                        <td>{{playlist[1].total}}</td>
+                        <td>
+                            <input type="checkbox" name="playlists" value="{{playlist[2]}}">
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+            <input type="submit" value="Add to Shuffle List">
+        </form>
+        {% endif %}
+    {% else %}
+        <div class="Messages">
+            Please log in to continue.
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
