@@ -6,6 +6,17 @@
 {% endblock %}
 
 {% block body %}
+<div>
+    <a href="{{ url_for('stopscheduler')}}">
+        Stop Scheduler
+    </a>
+</div>
+<div>
+    <a href="{{ url_for('startscheduler')}}">
+        start Scheduler
+    </a>
+</div>
+
 <div class="content">
     {% if user_name %}
         {% if playlists|length < 1 %}

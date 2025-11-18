@@ -1,12 +1,16 @@
 import os
 import random
+import time
 from dotenv import load_dotenv
+from datetime import datetime
+
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_apscheduler import APScheduler
 
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from spotipy.cache_handler import FlaskSessionCacheHandler
+from spotipy.cache_handler import FlaskSessionCacheHandler, CacheFileHandler
 
 load_dotenv()
 
@@ -15,6 +19,11 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///spotifyshuffler.db'
 db = SQLAlchemy(app)
+
+app.config['SCHEDULER_API_ENABLED'] = True
+app.config['SHEDULER_TIMEZONE'] = 'UTC'
+scheduler = APScheduler()
+scheduler.init_app(app)
 
 class ShufflerUser(db.Model):
     id = db.Column(db.String(50), primary_key=True)
@@ -42,20 +51,37 @@ s_client_secret = os.getenv("CLIENT_SECRET")
 s_redirect_uri = 'http://127.0.0.1:8000/callback'
 s_scope = 'playlist-read-private'
 
-s_cache_handler = FlaskSessionCacheHandler(session)
+web_cache_handler = FlaskSessionCacheHandler(session)
 sp_oauth = SpotifyOAuth(
     client_id = s_client_id,
     client_secret = s_client_secret,
     redirect_uri = s_redirect_uri,
     scope=s_scope,
-    cache_handler=s_cache_handler,
-    show_dialog=True
-    )
+    cache_handler = web_cache_handler,
+    show_dialog = True
+)
 
 sp = Spotify(auth_manager=sp_oauth)
 
+background_cache_handler = CacheFileHandler(cache_path=".spotify_token_cache.json")
+
+def get_background_sp_client():
+    background_sp_oauth = SpotifyOAuth(
+        client_id = s_client_id,
+        client_secret = s_client_secret,
+        redirect_uri = s_redirect_uri,
+        scope = s_scope,
+        cache_handler = background_cache_handler
+    )
+    token_info = background_cache_handler.get_cached_token()
+    if token_info and background_sp_oauth.is_valid_token(token_info):
+        return Spotify(auth_manager=background_sp_oauth)
+    else:
+        print("Error: Background job token is invalid. User must log in again.")
+        return None
+
 def check_token():
-    if not sp_oauth.validate_token(s_cache_handler.get_cached_token()):
+    if not sp_oauth.validate_token(web_cache_handler.get_cached_token()):
         auth_url = sp_oauth.get_authorize_url()
         return redirect(auth_url)
     return True
@@ -77,11 +103,37 @@ def update_average_played_times(user_id):
         except:
             return 'There was an issue updating user average'
 
+def update_history():
+    return 'Updating History'
+
 def shuffle_songs():
     return 'Shuffling Songs'
 
-def update_history():
-    return 'Updating History'
+def scheduled_jobs():
+    with app.app_context():
+        user = db.session.execute(db.select(ShufflerUser)).scalars().first()
+        if not user:
+            print("No users found in the database")
+            return
+        
+        sp_client = get_background_sp_client()
+
+        if sp_client:
+            print(f"running jobs")
+            update_history()
+            shuffle_songs()
+        else:
+            print("failed to authenticate")
+
+@app.route('/callback')
+def callback():
+    sp_oauth.get_access_token(request.args['code'])
+
+    token_info = web_cache_handler.get_cached_token()
+    if token_info:
+        background_cache_handler.save_token_info(token_info)
+    
+    return redirect(url_for('index'))
 
 @app.route('/')
 def index():
@@ -122,14 +174,33 @@ def login():
         return check_token()
     return redirect(url_for('index'))
 
+@app.route('/startscheduler')
+def startscheduler():
+    if not scheduler.running:
+        scheduler.start()
+        scheduler.add_job(
+            id = 'scheduled_jobs',
+            func = scheduled_jobs,
+            trigger = 'interval',
+            hours = 2.5,
+            misfire_grace_time = 300)
+        return 'Scheduler started.'
+    else:
+        return 'Scheduler is already running.'
+
+@app.route('/stopscheduler')
+def stopscheduler():
+    if scheduler.running:
+        scheduler.remove_job('scheduled_jobs')
+        scheduler.shutdown()
+        return 'Scheduler stopped.'
+    else:
+        return 'Scheduler is not running.'
+    #return redirect(url_for('index'))
+
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
-
-@app.route('/callback')
-def callback():
-    sp_oauth.get_access_token(request.args['code'])
     return redirect(url_for('index'))
 
 @app.route('/updatesongs', methods=['GET', 'POST'])
@@ -201,4 +272,18 @@ def updatesongs():
     return 'Nothing'
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+
+    if not scheduler.running:
+        scheduler.start()
+        scheduler.add_job(
+            id = 'scheduled_jobs',
+            func = scheduled_jobs,
+            trigger = 'interval',
+            hours = 2.5,
+            misfire_grace_time = 300
+        )
+        print("Scheduler started and jobs added.")
+
     app.run(debug=True, port=8000)
