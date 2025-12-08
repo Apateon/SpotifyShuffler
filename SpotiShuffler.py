@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy import func
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_apscheduler import APScheduler
 
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
@@ -20,11 +19,6 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///spotifyshuffler.db'
 db = SQLAlchemy(app)
-
-app.config['SCHEDULER_API_ENABLED'] = True
-app.config['SHEDULER_TIMEZONE'] = 'UTC'
-scheduler = APScheduler()
-scheduler.init_app(app)
 
 #User Table
 class ShufflerUser(db.Model):
@@ -194,25 +188,6 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
-
-@app.route('/startscheduler')
-def startscheduler():
-    if not scheduler.running:
-        scheduler.start()
-        scheduler.add_job(
-            id = 'scheduled_jobs',
-            func = scheduled_jobs,
-            trigger = 'interval',
-            hours = 1,
-            misfire_grace_time = 300)
-    return redirect(url_for('index'))
-
-@app.route('/stopscheduler')
-def stopscheduler():
-    if scheduler.running:
-        scheduler.remove_job('scheduled_jobs')
-        scheduler.shutdown()
     return redirect(url_for('index'))
 
 @app.route('/')
