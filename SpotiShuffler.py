@@ -20,9 +20,6 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///spotifyshuffler.db'
 db = SQLAlchemy(app)
 
-app.config['SCHEDULER_API_ENABLED'] = True
-app.config['SHEDULER_TIMEZONE'] = 'UTC'
-
 #User Table
 class ShufflerUser(db.Model):
     id = db.Column(db.String(50), primary_key=True)
