@@ -6,53 +6,129 @@
 {% endblock %}
 
 {% block body %}
-<div>
-    <a href="{{ url_for('stopscheduler')}}">
-        Stop Scheduler
-    </a>
+
+{% if message and message_title %}
+
+<div id="modal" class="Modal" style="display: block;">
+    <div class="Modal-Content">
+        <span class="Close-Button">&times;</span>
+        <h2>{{ message_title }}</h2>
+        <p>{{ message }}</p>
+    </div>
 </div>
+
+{% endif %}
 <div>
-    <a href="{{ url_for('startscheduler')}}">
-        start Scheduler
+    <a href="{{ url_for('printtable')}}">
+        Print Table
     </a>
 </div>
 
 <div class="content">
     {% if user_name %}
-        {% if playlists|length < 1 %}
-            <div class="Messages">
-                No playlists found.<br>
-                Please create one in Spotify!
-            </div>
-        {% else %}
-        <div>
-            {{ toprint }}
-        </div>
+    {% if playlists|length < 1 %} <div class="Messages">
+        No playlists found.<br>
+        Please create one in Spotify!
+</div>
+
+{% else %}
+
+<div class="Content-Row">
+    <div class="Content-Column" style="background-color: #168d40;">
+        <div class="Column-Heading">Add Playlists to the Shuffle List</div>
         <form action="/updatesongs" method="POST">
-            <table style="font-size: 5rem;">
+            <table class="Playlist-Table">
                 <tr>
                     <th>Playlist Name</th>
                     <th>Tracks</th>
                     <th>Select</th>
                 </tr>
                 {% for playlist in playlists %}
-                    <tr>
-                        <td>{{playlist[0]}}</td>
-                        <td>{{playlist[1].total}}</td>
-                        <td>
-                            <input type="checkbox" name="playlists" value="{{playlist[2]}}">
-                        </td>
-                    </tr>
+                <tr>
+                    <td>{{playlist[0]}}</td>
+                    <td>{{playlist[1].total}}</td>
+                    <td>
+                        <input type="checkbox" name="playlists" value="{{playlist[2]}}" {% if playlist[2] in
+                            selected_playlists%} checked {% endif %}>
+                    </td>
+                </tr>
                 {% endfor %}
             </table>
             <input type="submit" value="Add to Shuffle List">
         </form>
-        {% endif %}
-    {% else %}
-        <div class="Messages">
-            Please log in to continue.
+    </div>
+    <div class="Content-Column" style="background-color: #179c46;">
+        <div class="Column-Heading">Scheduler Status : {% if scheduler_running %}Running{% else %}Stopped{% endif %}
         </div>
-    {% endif %}
-
+        {% if scheduler_running %}
+        <a href="{{ url_for('stopscheduler') }}">Stop Scheduler</a>
+        {% else %}
+        <a href="{{ url_for('startscheduler') }}">Start Scheduler</a>
+        {% endif %}
+    </div>
+    <div class="Content-Column" style="background-color: #1db954;">
+        <div class="Column-Heading">Shuffle Songs</div>
+        <div>
+            <a href="{{ url_for('updatehistory')}}">
+                Update History
+            </a>
+        </div>
+        <form action="{{ url_for('shuffler') }}" method="POST">
+            Shuffle Songs based on:<br>
+            <input type="radio" value="time" name="based_on" id="radio_time" checked>
+            <label for="radio_time">Time</label>
+            <input type="radio" value="number" name="based_on" id="radio_number">
+            <label for="radio_number">Number of Songs</label><br>
+            <input type="number" name="amount" id="amount_input" placeholder="Time in minutes">
+            <span id="amount_unit">minutes</span><br>
+            <input type="submit" value="Shuffle Songs">
+        </form>
+    </div>
 </div>
+
+{% endif %}
+{% else %}
+<div class="Messages">
+    Please log in to continue.
+</div>
+{% endif %}
+</div>
+
+<script>
+    const radioTime = document.getElementById('radio_time');
+    const radioNumber = document.getElementById('radio_number');
+    const amountInput = document.getElementById('amount_input');
+    const amountUnit = document.getElementById('amount_unit');
+
+    function updatePlaceholder() {
+        if (radioTime.checked) {
+            amountInput.placeholder = "Time in minutes";
+            amountUnit.textContent = "minutes";
+        } else if (radioNumber.checked) {
+            amountInput.placeholder = "Number of songs";
+            amountUnit.textContent = "songs";
+        }
+    }
+
+    if (radioTime && radioNumber && amountInput) {
+        radioTime.addEventListener('change', updatePlaceholder);
+        radioNumber.addEventListener('change', updatePlaceholder);
+    }
+
+    const Modal = document.getElementById('modal');
+    const CloseButton = document.querySelector('.Close-Button');
+
+    if (Modal) {
+        CloseButton.onclick = function () {
+            Modal.style.display = 'none';
+        }
+    }
+
+    window.onclick = function (event) {
+        if (event.target == Modal) {
+            Modal.style.display = 'none';
+        }
+    }
+</script>
+
 {% endblock %}

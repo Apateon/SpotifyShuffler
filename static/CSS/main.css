@@ -1,5 +1,5 @@
-body, html 
-{
+body,
+html {
     color: white;
     background-color: rgb(49, 49, 49);
     font-family: "Dongle", sans-serif;
@@ -8,16 +8,16 @@ body, html
     margin: 0;
 }
 
-.TopBar
-{
+.TopBar {
     background-color: black;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.Logo
-{
+.Logo .Logo-Link {
+    text-decoration: none;
+    color: white;
     padding-left: 1.5rem;
     font-weight: 500;
     font-size: 5rem;
@@ -26,34 +26,29 @@ body, html
     gap: 1.5rem;
 }
 
-.icon
-{
+.icon {
     width: 5rem;
     height: 5rem;
     padding-bottom: 0.5rem;
 }
 
-.filtered-svg
-{
+.filtered-svg {
     filter: brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0%) hue-rotate(299deg) brightness(102%) contrast(102%);
 }
 
-.User-Corner
-{
+.User-Corner {
     display: flex;
     align-items: center;
     padding-right: 20px;
     padding-bottom: 15px;
 }
 
-.User-name
-{
+.User-name {
     font-size: 2.5rem;
     padding-right: 2rem;
 }
 
-.round-link
-{
+.round-link {
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -74,48 +69,40 @@ body, html
     transition: background-color 0.3s ease;
 }
 
-.round-link:hover
-{
+.round-link:hover {
     background-color: #14813a;
 }
 
-@media (max-width: 850px) 
-{
-    .TopBar
-    {
+@media (max-width: 850px) {
+    .TopBar {
         flex-direction: column;
         align-items: center;
     }
 
-    .Logo
-    {
+    .Logo {
         padding: 0;
         font-size: 10vw;
         gap: 3vw;
     }
 
-    .icon
-    {
+    .icon {
         width: 9vw;
         height: 9vw;
     }
 
-    .User-Corner
-    {
+    .User-Corner {
         flex-direction: column;
         padding-right: 0;
         padding-bottom: 20px;
     }
 
-    .round-link
-    {
+    .round-link {
         width: 10vw;
         height: 6vw;
         font-size: 4vw;
     }
 
-    .User-name
-    {
+    .User-name {
         font-size: 9vw;
         padding: 0 0 2vw 0;
     }

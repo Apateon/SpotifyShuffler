@@ -1,5 +1,77 @@
-.Messages
-{
-    font-size: 8rem;
+.Messages {
+    font-size: 5rem;
     text-align: center;
+}
+
+.Content-Row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.Content-Column {
+    width: 33.33%;
+    font-size: 2rem;
+    text-align: center;
+}
+
+.Content-Column h1 {
+    margin: 3rem;
+}
+
+.Playlist-Table {
+    font-size: 3.25vw;
+}
+
+.Column-Heading {
+    font-size: 3.5rem;
+    padding: 10px;
+    font-weight: bold;
+}
+
+.Modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.Modal-Content {
+    background-color: white;
+    color: black;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.Close-Button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.Close-Button:hover,
+.Close-Button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+@media (max-width: 850px) {
+    .Content-Column {
+        width: 100%;
+    }
+
+    .Playlist-Table {
+        font-size: 3rem;
+    }
 }

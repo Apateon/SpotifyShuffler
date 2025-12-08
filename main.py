@@ -19,7 +19,7 @@ client_secret = os.getenv("CLIENT_SECRET")
 
 #setting redirect uri and the scope of the application
 redirect_uri = 'http://127.0.0.1:8000/callback'
-scope = 'playlist-read-private'
+scope = 'playlist-read-private user-read-recently-played'
 
 cache_handler = FlaskSessionCacheHandler(session)
 sp_oauth = SpotifyOAuth(
@@ -50,9 +50,14 @@ def get_playlists():
         auth_url = sp_oauth.get_authorize_url()
         return redirect(auth_url)
     
-    playlists = sp.current_user_playlists()
-    playlists_info = [(pl['name'], pl['external_urls']['spotify']) for pl in playlists['items']]
-    playlists_html = '<br>'.join(f'{name}:{url}' for name, url in playlists_info)
+    last_song_id = '77UjLW8j5UAGAGVGhR5oUK'
+
+    recently_played = sp.current_user_recently_played()['items']
+    playlists_html = ''
+    for song in recently_played:
+        if song['track']['id'] == last_song_id:
+            break
+        playlists_html += f'<br>{song['track']['id']}'
 
     return playlists_html
 
