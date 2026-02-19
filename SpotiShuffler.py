@@ -26,6 +26,8 @@ app.config['SHEDULER_TIMEZONE'] = 'UTC'
 scheduler = APScheduler()
 scheduler.init_app(app)
 
+active_shuffle = False
+
 #User Table
 class ShufflerUser(db.Model):
     id = db.Column(db.String(50), primary_key=True)
@@ -46,7 +48,7 @@ s_client_id = os.getenv("CLIENT_ID")
 s_client_secret = os.getenv("CLIENT_SECRET")
 
 s_redirect_uri = 'http://127.0.0.1:8000/callback'
-s_scope = 'playlist-read-private user-read-recently-played user-modify-playback-state'
+s_scope = 'playlist-read-private user-read-recently-played user-modify-playback-state user-read-playback-state user-read-currently-playing'
 
 web_cache_handler = FlaskSessionCacheHandler(session)
 sp_oauth = SpotifyOAuth(
@@ -169,6 +171,11 @@ def scheduled_jobs():
 
         if sp_client:
             update_history(user.id, sp_client)
+            if active_shuffle:
+                print(len(sp_client.queue()['queue']))
+                songs_in_queue = len(sp_client.queue()['queue'])
+                if songs_in_queue < 20:
+                    shuffle_songs(user.id, 'number', 20 - songs_in_queue)
         else:
             print("failed to authenticate")
 
@@ -204,7 +211,7 @@ def startscheduler():
             id = 'scheduled_jobs',
             func = scheduled_jobs,
             trigger = 'interval',
-            hours = 2,
+            hours = 1 if active_shuffle else 2,
             misfire_grace_time = 300)
     return redirect(url_for('index'))
 
@@ -213,6 +220,17 @@ def stopscheduler():
     if scheduler.running:
         scheduler.remove_job('scheduled_jobs')
         scheduler.shutdown()
+    return redirect(url_for('index'))
+
+@app.route('/toggleactiveshuffle')
+def toggleactiveshuffle():
+    global active_shuffle
+    active_shuffle = not active_shuffle
+    if scheduler.running:
+        scheduler.scheduler.reschedule_job(
+            'scheduled_jobs', 
+            trigger='interval', 
+            hours= 1 if active_shuffle else 2)
     return redirect(url_for('index'))
 
 @app.route('/')
@@ -255,10 +273,12 @@ def index():
                                scheduler_running = scheduler.running,
                                selected_playlists = selected_playlists,
                                message=message,
-                               message_title=message_title)
+                               message_title=message_title,
+                               active_shuffle = active_shuffle)
 
 @app.route('/printtable')
 def printtable():
+    scheduled_jobs()
     #song history table
     all_songs = db.session.execute(db.select(SongHistory).order_by(SongHistory.last_played.desc())).scalars().all()
     table = '<h2>Song history</h2><table><tr><th>ISRC</th><th>Song ID</th><th>User ID</th><th>Played Times</th><th>Last Played</th></tr>'

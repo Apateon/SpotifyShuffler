@@ -58,13 +58,30 @@
         </form>
     </div>
     <div class="Content-Column" style="background-color: #179c46;">
-        <div class="Column-Heading">Scheduler Status : {% if scheduler_running %}Running{% else %}Stopped{% endif %}
+        <div class="Column-Container">
+            <div class="Sub-Column">
+                <div class="Column-Heading">Scheduler Status</div>
+                <div class="Status-Text">
+                    {% if scheduler_running %} Running {% else %} Stopped {% endif %}
+                </div>
+                {% if scheduler_running %}
+                <a href="{{ url_for('stopscheduler') }}" class="Action-Button">Stop</a>
+                {% else %}
+                <a href="{{ url_for('startscheduler') }}" class="Action-Button">Start</a>
+                {% endif %}
+            </div>
+            <div class="Sub-Column">
+                <div class="Column-Heading">Active Shuffling</div>
+                <div class="Status-Text">
+                    {% if active_shuffle %} On {% else %} Off {% endif %}
+                </div>
+                {% if active_shuffle %}
+                <a href="{{ url_for('toggleactiveshuffle') }}" class="Action-Button">Turn Off</a>
+                {% else %}
+                <a href="{{ url_for('toggleactiveshuffle') }}" class="Action-Button">Turn On</a>
+                {% endif %}
+            </div>
         </div>
-        {% if scheduler_running %}
-        <a href="{{ url_for('stopscheduler') }}">Stop Scheduler</a>
-        {% else %}
-        <a href="{{ url_for('startscheduler') }}">Start Scheduler</a>
-        {% endif %}
     </div>
     <div class="Content-Column" style="background-color: #1db954;">
         <div class="Column-Heading">Shuffle Songs</div>
