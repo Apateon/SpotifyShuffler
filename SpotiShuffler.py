@@ -126,7 +126,18 @@ def update_history(user_id, sp_client):
     return 'updating history'
 
 #shuffle songs based on the average times played
-def shuffle_songs(user_id, based_on, amount):
+def shuffle_songs(user_id, based_on, amount, sp_client):
+    active_flag = False
+    devices = sp_client.devices()
+    for device in devices['devices']:
+        if device['is_active']:
+            active_flag = True
+            break
+    
+    if not active_flag:
+        print("")
+        return 0
+
     if based_on == 'time':
         amount = int(amount / 3)
     else:
@@ -135,7 +146,7 @@ def shuffle_songs(user_id, based_on, amount):
     average_played = update_average_played_times(user_id)
     song_list = db.session.execute(
         db.select(SongHistory.song_id)
-        .filter(SongHistory.played_times <= average_played)
+        .filter(SongHistory.played_times < average_played)
         .order_by(func.random())
         .limit(amount)
         ).scalars().all()
@@ -155,7 +166,7 @@ def shuffle_songs(user_id, based_on, amount):
 
     #add songs to the queue
     for song in song_list:
-        sp.add_to_queue(song)
+        sp_client.add_to_queue(song)
 
     return len(song_list)
 
@@ -175,7 +186,7 @@ def scheduled_jobs():
                 print(len(sp_client.queue()['queue']))
                 songs_in_queue = len(sp_client.queue()['queue'])
                 if songs_in_queue < 20:
-                    shuffle_songs(user.id, 'number', 20 - songs_in_queue)
+                    shuffle_songs(user.id, 'number', 20 - songs_in_queue, sp_client)
         else:
             print("failed to authenticate")
 
@@ -279,6 +290,7 @@ def index():
 @app.route('/printtable')
 def printtable():
     scheduled_jobs()
+
     #song history table
     all_songs = db.session.execute(db.select(SongHistory).order_by(SongHistory.last_played.desc())).scalars().all()
     table = '<h2>Song history</h2><table><tr><th>ISRC</th><th>Song ID</th><th>User ID</th><th>Played Times</th><th>Last Played</th></tr>'
@@ -313,7 +325,7 @@ def shuffler():
         if amount < 1:
             return redirect(url_for('index', message="Please enter a valid amount", message_title="Something Went Wrong"))
         
-        songsadded = shuffle_songs(sp.current_user()['id'], based_on, amount)
+        songsadded = shuffle_songs(sp.current_user()['id'], based_on, amount, sp)
         return redirect(url_for('index', message=f"{songsadded} songs added to queue", message_title="Songs Added to Queue"))
     return redirect(url_for('index'))
 
