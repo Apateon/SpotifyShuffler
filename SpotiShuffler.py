@@ -51,6 +51,7 @@ s_redirect_uri = 'http://127.0.0.1:8000/callback'
 s_scope = 'playlist-read-private user-read-recently-played user-modify-playback-state user-read-playback-state user-read-currently-playing'
 
 web_cache_handler = FlaskSessionCacheHandler(session)
+
 sp_oauth = SpotifyOAuth(
     client_id = s_client_id,
     client_secret = s_client_secret,
@@ -135,7 +136,6 @@ def shuffle_songs(user_id, based_on, amount, sp_client):
             break
     
     if not active_flag:
-        print("")
         return 0
 
     if based_on == 'time':
@@ -183,10 +183,9 @@ def scheduled_jobs():
         if sp_client:
             update_history(user.id, sp_client)
             if active_shuffle:
-                print(len(sp_client.queue()['queue']))
                 songs_in_queue = len(sp_client.queue()['queue'])
-                if songs_in_queue < 20:
-                    shuffle_songs(user.id, 'number', 20 - songs_in_queue, sp_client)
+                if songs_in_queue < 19:
+                    shuffle_songs(user.id, 'number', 20 - songs_in_queue + 20, sp_client)
         else:
             print("failed to authenticate")
 
