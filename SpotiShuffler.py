@@ -1,10 +1,9 @@
 import os
 import random
-import time
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_apscheduler import APScheduler
@@ -12,6 +11,8 @@ from flask_apscheduler import APScheduler
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from spotipy.cache_handler import FlaskSessionCacheHandler, CacheFileHandler
+
+import webbrowser
 
 load_dotenv()
 
@@ -26,7 +27,7 @@ app.config['SHEDULER_TIMEZONE'] = 'UTC'
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-active_shuffle = False
+active_shuffle = True
 
 #User Table
 class ShufflerUser(db.Model):
@@ -43,6 +44,7 @@ class SongHistory(db.Model):
     user_id = db.Column(db.String(50), db.ForeignKey('shuffler_user.id'))
     played_times = db.Column(db.Integer)
     last_played = db.Column(db.DateTime)
+    last_queued = db.Column(db.DateTime)
 
 s_client_id = os.getenv("CLIENT_ID")
 s_client_secret = os.getenv("CLIENT_SECRET")
@@ -144,9 +146,15 @@ def shuffle_songs(user_id, based_on, amount, sp_client):
         amount = int(amount)
     
     average_played = update_average_played_times(user_id)
+
+    queue_cooldown = datetime.now(timezone.utc) - timedelta(hours=24)
+    shuffling_cooldown = datetime.now(timezone.utc) - timedelta(days=7)
+
     song_list = db.session.execute(
         db.select(SongHistory.song_id)
         .filter(SongHistory.played_times < average_played)
+        .filter((SongHistory.last_queued < queue_cooldown) | (SongHistory.last_queued == None))
+        .filter((SongHistory.last_played < shuffling_cooldown) | (SongHistory.last_played == None))
         .order_by(func.random())
         .limit(amount)
         ).scalars().all()
@@ -156,6 +164,8 @@ def shuffle_songs(user_id, based_on, amount, sp_client):
         more_songs = db.session.execute(
             db.select(SongHistory.song_id)
             .filter(SongHistory.played_times >= average_played)
+            .filter((SongHistory.last_queued < queue_cooldown) | (SongHistory.last_queued == None))
+            .filter((SongHistory.last_played < shuffling_cooldown) | (SongHistory.last_played == None))
             .order_by(SongHistory.last_played.asc())
             .limit(needed)
         ).scalars().all()
@@ -167,6 +177,15 @@ def shuffle_songs(user_id, based_on, amount, sp_client):
     #add songs to the queue
     for song in song_list:
         sp_client.add_to_queue(song)
+
+    #update the last queued time for the songs
+    timenow = datetime.now(timezone.utc)
+    db.session.execute(
+        db.update(SongHistory)
+        .where(SongHistory.song_id.in_(song_list))
+        .values(last_queued = timenow)
+    )
+    db.session.commit()
 
     return len(song_list)
 
@@ -217,6 +236,8 @@ def logout():
 def startscheduler():
     if not scheduler.running:
         scheduler.start()
+
+    if not scheduler.get_job('scheduled_jobs'):
         scheduler.add_job(
             id = 'scheduled_jobs',
             func = scheduled_jobs,
@@ -292,9 +313,9 @@ def printtable():
 
     #song history table
     all_songs = db.session.execute(db.select(SongHistory).order_by(SongHistory.last_played.desc())).scalars().all()
-    table = '<h2>Song history</h2><table><tr><th>ISRC</th><th>Song ID</th><th>User ID</th><th>Played Times</th><th>Last Played</th></tr>'
+    table = '<h2>Song history</h2><table><tr><th>ISRC</th><th>Song ID</th><th>User ID</th><th>Played Times</th><th>Last Played</th><th>Last Queued</th></tr>'
     for song in all_songs:
-        table += f'<tr><td>{song.isrc}</td><td>{song.song_id}</td><td>{song.user_id}</td><td>{song.played_times}</td><td>{song.last_played}</td></tr>'
+        table += f'<tr><td>{song.isrc}</td><td>{song.song_id}</td><td>{song.user_id}</td><td>{song.played_times}</td><td>{song.last_played}</td><td>{song.last_queued}</td></tr>'
     table += '</table>'
 
     #shuffler user
@@ -397,5 +418,19 @@ def updatesongs():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+    
+    if not scheduler.running:
+            scheduler.start()
+            
+            scheduler.add_job(
+                id='scheduled_jobs',
+                func=scheduled_jobs,
+                trigger='interval',
+                hours=1,
+                misfire_grace_time=300
+            )
+            print("Scheduler started automatically on launch.")
 
-    app.run(debug=True, port=8000)
+    webbrowser.open("http://127.0.0.1:8000/")
+
+    app.run(debug=False, port=8000, use_reloader=False)
